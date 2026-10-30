@@ -1,0 +1,43 @@
+name: Security tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the files
+        uses: actions/checkout@v4
+
+      - name: Check required files exist
+        run: |
+          missing=0
+          for f in README.md LICENSE SECURITY.md CONTRIBUTING.md CODE_OF_CONDUCT.md CHANGELOG.md \
+            skills/document-guardian/SKILL.md \
+            skills/scam-detector/SKILL.md \
+            skills/money-protector/SKILL.md \
+            skills/global-helper/SKILL.md; do
+            if [ ! -f "$f" ]; then
+              echo "Missing file: $f"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Look for hidden secrets
+        run: |
+          if grep -rIniE --exclude-dir=.git --exclude-dir=.github \
+            -e '(api[_-]?key|password|secret|token)[[:space:]]*[:=][[:space:]]*[A-Za-z0-9]{12,}' \
+            -e 'sk-[A-Za-z0-9]{20,}' \
+            -e 'AKIA[0-9A-Z]{16}' \
+            -e 'BEGIN (RSA |EC )?PRIVATE KEY' .; then
+            echo "Possible secret found. Remove it before merging."
+            exit 1
+          fi
+          echo "No secrets found."
